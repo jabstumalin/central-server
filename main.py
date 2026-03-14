@@ -9,6 +9,7 @@ from pydantic import BaseModel
 import uvicorn
 import os
 import io
+import glob
 import zipfile
 from pathlib import Path
 from config import settings
@@ -50,17 +51,21 @@ async def get_global_package():
     Endpoint for hospital nodes to retrieve both global model and scaler as a zip package.
     This is the recommended endpoint for nodes to download all necessary files at once.
     """
-    # Determine which model version to use
+    # Determine which model version to use (prefer v2, fallback to v1)
+    model_v2_path = os.path.join(settings.MODEL_PATH, "main_model_v2.pkl")
     model_v1_path = os.path.join(settings.MODEL_PATH, "main_model_v1.pkl")
     scaler_path = os.path.join(settings.MODEL_PATH, "global_scaler.pkl")
-    
-    if os.path.exists(model_v1_path):
+
+    if os.path.exists(model_v2_path):
+        model_path = model_v2_path
+        model_filename = "main_model_v2.pkl"
+    elif os.path.exists(model_v1_path):
         model_path = model_v1_path
         model_filename = "main_model_v1.pkl"
     else:
         raise HTTPException(
             status_code=404,
-            detail="Global model not found. Please ensure the model is trained and available."
+            detail="Global model not found (checked v2 and v1). Please ensure a model is available."
         )
     
     # Check if scaler exists
@@ -134,6 +139,23 @@ async def get_global_scaler():
             status_code=404,
             detail="Global scaler not found."
         )
+
+
+@app.post("/reset")
+def reset_node():
+    """Reset the central server by deleting all locally stored model files, excluding baseline models."""
+    baseline_files = {"main_model_v1.pkl", "global_scaler.pkl"}
+    deleted_files = []
+    if os.path.exists(settings.MODEL_PATH):
+        for file in glob.glob(os.path.join(settings.MODEL_PATH, "*.pkl")):
+            if os.path.basename(file) in baseline_files:
+                continue
+            try:
+                os.remove(file)
+                deleted_files.append(os.path.basename(file))
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+    return {"status": "success", "message": "Node reset successfully.", "deleted_files": deleted_files}
 
 
 @app.get("/models/list")

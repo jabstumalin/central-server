@@ -43,7 +43,7 @@ The API will be available at: http://localhost:8000
 
 ### Start Streamlit Dashboard
 ```powershell
-streamlit run streamlit_app.py
+streamlit run main_dashboard.py
 ```
 The dashboard will be available at: http://localhost:8501
 
@@ -53,20 +53,22 @@ The dashboard will be available at: http://localhost:8501
 python main.py
 
 # Terminal 2 - Streamlit
-streamlit run streamlit_app.py
+streamlit run main_dashboard.py
 ```
 
 ## Project Structure
 
 ```
 central-server/
-├── main.py              # FastAPI application
-├── streamlit_app.py     # Streamlit dashboard
-├── config.py            # Configuration settings
-├── requirements.txt     # Python dependencies
-├── .env.example         # Environment variables template
-├── .env                 # Your local environment variables (create this)
-└── models/              # ML models directory (create as needed)
+├── main.py                   # FastAPI application
+├── main_dashboard.py         # Streamlit federated learning dashboard
+├── config.py                 # Configuration settings
+├── requirements.txt          # Python dependencies
+├── download_global_model.py  # Utility for hospital nodes to download global model
+├── hospital_node_example.py  # Example hospital node server implementation
+├── .env.example              # Environment variables template
+├── .env                      # Your local environment variables (create this)
+└── models/                   # ML models directory (create as needed)
 ```
 
 ## API Endpoints
@@ -128,11 +130,113 @@ with open("global_scaler.pkl", "wb") as f:
 - Streamlit automatically reloads on file changes
 - API documentation is auto-generated at `/docs`
 
+## Federated Learning: Hospital Node Setup
+
+### How Hospital Nodes Should Expose Their Models
+
+Each hospital node must implement a `/model/download` endpoint that returns their trained model file. The Central Server will retrieve models from this endpoint during the federated aggregation process.
+
+**Required Endpoint:** `GET /model/download`
+
+**Example Hospital Node Implementation:**
+
+See [hospital_node_example.py](hospital_node_example.py) for a complete working example.
+
+```python
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+import os
+
+app = FastAPI(title="Hospital Node API")
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/model/download")
+async def download_model():
+    """
+    Central Server retrieves the model by calling this endpoint.
+    FileResponse automatically converts the pickle file to bytes
+    and safely transmits it over HTTP.
+    """
+    model_file = "hospital_1_v2.pkl"
+    
+    if not os.path.exists(model_file):
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    return FileResponse(
+        path=model_file,
+        media_type="application/octet-stream",
+        filename=model_file
+    )
+```
+
+**Running a Hospital Node:**
+```powershell
+# Hospital 1 on port 8002
+uvicorn hospital_node_example:app --port 8002
+
+# Hospital 2 on port 8003  
+uvicorn hospital_node_example:app --port 8003
+```
+
+### How the Central Server Retrieves Models
+
+The Central Server dashboard makes simple HTTP GET requests to retrieve hospital models:
+
+```python
+import requests
+
+# Retrieve Hospital 1's trained model
+response = requests.get("http://127.0.0.1:8002/model/download")
+
+if response.status_code == 200:
+    # Save the model to Central Server's drive
+    with open("hospital_1_v2.pkl", "wb") as f:
+        f.write(response.content)
+    print("Successfully retrieved Hospital 1's model!")
+```
+
+**Key Points:**
+- FastAPI's `FileResponse` automatically handles binary file transmission
+- No need to manually encode/decode - it's handled automatically
+- The Central Server receives the exact same pickle file that was saved on the hospital's system
+- Models are stored in the `models/` directory on the Central Server
+
+### Federated Learning Workflow
+
+1. **Initial Distribution**: Hospital nodes download global model and scaler from Central Server
+   - Use: `GET /global/package` or `GET /global/model` + `GET /global/scaler`
+
+2. **Local Training**: Each hospital trains the model on their private local data
+   - Data never leaves the hospital premises
+   - Only model weights are shared
+
+3. **Model Exposure**: Hospital nodes expose their trained models via `/model/download`
+   - Hospital 1: `http://127.0.0.1:8002/model/download`
+   - Hospital 2: `http://127.0.0.1:8003/model/download`
+
+4. **Aggregation**: Central Server retrieves and aggregates all models using FedAvg
+   - Use the Streamlit dashboard at `http://localhost:8501`
+   - Click "Retrieve Model" buttons for each hospital
+   - Click "Perform FedAvg Aggregation" to combine models
+
+5. **Update Global Model**: Aggregated model becomes new global model
+   - Saved as `main_model_v2.pkl`
+   - Ready for next iteration
+
 ## Next Steps
 
 1. Add your ML models to the `models/` directory
 2. Implement prediction logic in `main.py`
-3. Customize the Streamlit dashboard in `streamlit_app.py`
+3. Customize the Streamlit dashboard in `main_dashboard.py`
 4. Configure environment variables in `.env`
 5. Add authentication if needed
 6. Deploy to production server
