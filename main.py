@@ -51,21 +51,17 @@ async def get_global_package():
     Endpoint for hospital nodes to retrieve both global model and scaler as a zip package.
     This is the recommended endpoint for nodes to download all necessary files at once.
     """
-    # Determine which model version to use (prefer v2, fallback to v1)
-    model_v2_path = os.path.join(settings.MODEL_PATH, "main_model_v2.pkl")
+    # Determine which model version to use
     model_v1_path = os.path.join(settings.MODEL_PATH, "main_model_v1.pkl")
     scaler_path = os.path.join(settings.MODEL_PATH, "global_scaler.pkl")
-
-    if os.path.exists(model_v2_path):
-        model_path = model_v2_path
-        model_filename = "main_model_v2.pkl"
-    elif os.path.exists(model_v1_path):
+    
+    if os.path.exists(model_v1_path):
         model_path = model_v1_path
         model_filename = "main_model_v1.pkl"
     else:
         raise HTTPException(
             status_code=404,
-            detail="Global model not found (checked v2 and v1). Please ensure a model is available."
+            detail="Global model not found. Please ensure the model is trained and available."
         )
     
     # Check if scaler exists

@@ -6,7 +6,7 @@ import os
 import streamlit as st
 import requests
 
-from dashboard.config import HOSPITAL_1_URL, HOSPITAL_2_URL, MODELS_DIR
+from dashboard.config import CENTRAL_API_URL, HOSPITAL_1_URL, HOSPITAL_2_URL, MODELS_DIR
 from dashboard.session import init_session_state
 from dashboard.helpers import check_node_status, METRICS_FILE
 from dashboard.tab_aggregation import render as render_aggregation
@@ -58,7 +58,7 @@ with st.sidebar:
     st.markdown("### Danger Zone")
     if st.button("Reset Central Server", type="secondary", use_container_width=True):
         try:
-            r = requests.post("http://localhost:8000/reset", timeout=5)
+            r = requests.post(f"{CENTRAL_API_URL}/reset", timeout=5)
             if r.status_code == 200:
                 data = r.json()
                 st.session_state.h1_downloaded = False

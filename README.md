@@ -240,3 +240,46 @@ if response.status_code == 200:
 4. Configure environment variables in `.env`
 5. Add authentication if needed
 6. Deploy to production server
+
+## Deploy On Railway
+
+This repository contains two runnable apps:
+- `FastAPI API` (`main.py`)
+- `Streamlit Dashboard` (`main_dashboard.py`)
+
+Railway runs one start command per service, so create **two Railway services** from the same repo.
+
+### Service 1: FastAPI API
+
+1. Create a new service from this repo.
+2. Set the start command to:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+3. Optional environment variables:
+- `API_TITLE`
+- `API_VERSION`
+- `MODEL_PATH` (default: `models/`)
+- `LOG_LEVEL`
+
+### Service 2: Streamlit Dashboard
+
+1. Create another service from the same repo.
+2. Set the start command to:
+
+```bash
+streamlit run main_dashboard.py --server.address 0.0.0.0 --server.port $PORT
+```
+
+3. Set environment variables:
+- `CENTRAL_API_URL=https://<your-fastapi-service>.up.railway.app`
+- `HOSPITAL_1_URL=https://<hospital-1-service-url>` (optional)
+- `HOSPITAL_2_URL=https://<hospital-2-service-url>` (optional)
+
+### Important Notes
+
+- The API now supports Railway's `PORT` automatically.
+- The dashboard reset action uses `CENTRAL_API_URL`, so it works across Railway services.
+- Keep `models/` writable at runtime if you plan to persist downloaded/aggregated model files.

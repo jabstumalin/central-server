@@ -1,6 +1,7 @@
 """
 Configuration file for the central server
 """
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -12,7 +13,7 @@ class Settings(BaseSettings):
     API_TITLE: str = "Central Server API"
     API_VERSION: str = "1.0.0"
     API_HOST: str = "0.0.0.0"
-    API_PORT: int = 8000
+    API_PORT: int = Field(default=8000, validation_alias=AliasChoices("API_PORT", "PORT"))
     
     # Streamlit Configuration
     STREAMLIT_PORT: int = 8501
