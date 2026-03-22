@@ -1,16 +1,14 @@
 import streamlit as st
-import os
-from .config import MODELS_DIR
 from .helpers import load_metrics
 
 
 def init_session_state():
     if "h1_downloaded" not in st.session_state:
-        st.session_state.h1_downloaded = os.path.exists(os.path.join(MODELS_DIR, "hospital_1_v2.pkl"))
+        st.session_state.h1_downloaded = False
     if "h2_downloaded" not in st.session_state:
-        st.session_state.h2_downloaded = os.path.exists(os.path.join(MODELS_DIR, "hospital_2_v2.pkl"))
+        st.session_state.h2_downloaded = False
     if "aggregation_done" not in st.session_state:
-        st.session_state.aggregation_done = os.path.exists(os.path.join(MODELS_DIR, "main_model_v2.pkl"))
+        st.session_state.aggregation_done = False
     if "h1_model_info" not in st.session_state:
         st.session_state.h1_model_info = None
     if "h2_model_info" not in st.session_state:

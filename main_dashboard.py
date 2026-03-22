@@ -46,13 +46,19 @@ with st.sidebar:
     st.divider()
 
     st.markdown("### Models on Disk")
-    model_files = [f for f in os.listdir(MODELS_DIR) if f.endswith(".pkl")]
-    if model_files:
-        for mf in sorted(model_files):
-            size_kb = os.path.getsize(os.path.join(MODELS_DIR, mf)) / 1024
-            st.text(f"• {mf}  ({size_kb:.1f} KB)")
-    else:
-        st.caption("No models found")
+    try:
+        models_resp = requests.get(f"{CENTRAL_API_URL}/models/list", timeout=5)
+        if models_resp.status_code == 200:
+            model_files = models_resp.json().get("models", [])
+            if model_files:
+                for mf in sorted(model_files):
+                    st.text(f"• {mf}")
+            else:
+                st.caption("No models found")
+        else:
+            st.caption("Could not fetch model list from central API")
+    except Exception:
+        st.caption("Central API unavailable")
     st.divider()
 
     st.markdown("### Danger Zone")
@@ -61,6 +67,9 @@ with st.sidebar:
             r = requests.post(f"{CENTRAL_API_URL}/reset", timeout=5)
             if r.status_code == 200:
                 data = r.json()
+                if data.get("status") != "success":
+                    st.error(f"Reset failed: {data.get('message', 'Unknown error')}")
+                    st.stop()
                 st.session_state.h1_downloaded = False
                 st.session_state.h2_downloaded = False
                 st.session_state.aggregation_done = False
@@ -92,7 +101,11 @@ with st.sidebar:
                     st.info("Reset complete. No model files were found.")
                 st.rerun()
             else:
-                st.error(f"Reset failed — HTTP {r.status_code}")
+                try:
+                    detail = r.json().get("detail")
+                except Exception:
+                    detail = r.text
+                st.error(f"Reset failed — HTTP {r.status_code}: {detail}")
         except Exception as e:
             st.error(f"Could not reach API: {e}")
 
@@ -107,7 +120,7 @@ h2_online = check_node_status(h2_url)
 tab1, tab2 = st.tabs(["Federated Aggregation", "Performance Metrics"])
 
 with tab1:
-    render_aggregation(h1_url, h2_url, h1_online, h2_online)
+    render_aggregation(h1_url, h2_url, h1_online, h2_online, CENTRAL_API_URL)
 
 with tab2:
     render_metrics()
