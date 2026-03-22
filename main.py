@@ -249,8 +249,6 @@ async def retrieve_node_model(payload: RetrieveModelRequest):
 @app.post("/aggregate")
 async def aggregate_models(payload: AggregateRequest):
     """Aggregate hospital models using weighted FedAvg and save main_model_v2.pkl."""
-    os.makedirs(settings.MODEL_PATH, exist_ok=True)
-
     h1_path = os.path.join(settings.MODEL_PATH, "hospital_1_v2.pkl")
     h2_path = os.path.join(settings.MODEL_PATH, "hospital_2_v2.pkl")
 
@@ -286,9 +284,6 @@ async def aggregate_models(payload: AggregateRequest):
 
         v2_path = os.path.join(settings.MODEL_PATH, "main_model_v2.pkl")
         joblib.dump(main_v2, v2_path)
-        if not os.path.exists(v2_path):
-            raise RuntimeError("Aggregation completed but main_model_v2.pkl was not written to disk.")
-
         info = inspect_model(v2_path)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Aggregation failed: {exc}") from exc
