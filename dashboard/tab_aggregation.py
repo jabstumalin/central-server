@@ -54,11 +54,8 @@ def render(h1_url, h2_url, h1_online, h2_online, central_api_url):
                 except Exception as e:
                     st.error(f"Connection error: {e}")
 
-        if st.session_state.h1_downloaded:
-            if st.session_state.h1_model_info:
-                with st.expander("Hospital 1 — Model Details", expanded=True):
-                    for k, v in st.session_state.h1_model_info.items():
-                        st.markdown(f"**{k}:** `{v}`")
+        # Detailed model metadata is intentionally hidden in this view to keep
+        # the UI focused on high-level orchestration.
 
     # ---- Hospital 2 ----
     with col2:
@@ -92,11 +89,7 @@ def render(h1_url, h2_url, h1_online, h2_online, central_api_url):
                 except Exception as e:
                     st.error(f"Connection error: {e}")
 
-        if st.session_state.h2_downloaded:
-            if st.session_state.h2_model_info:
-                with st.expander("Hospital 2 — Model Details", expanded=True):
-                    for k, v in st.session_state.h2_model_info.items():
-                        st.markdown(f"**{k}:** `{v}`")
+        # Detailed model metadata is intentionally hidden in this view.
 
     st.divider()
 
@@ -175,10 +168,5 @@ def render(h1_url, h2_url, h1_online, h2_online, central_api_url):
                 agg_status.update(label="Aggregation failed", state="error")
                 st.error(f"Error: {str(e)}")
 
-    if st.session_state.aggregation_done:
-        if st.session_state.agg_model_info:
-            with st.expander("Aggregated Global Model (main_model_v2) — Details", expanded=False):
-                for k, v in st.session_state.agg_model_info.items():
-                    st.markdown(f"**{k}:** `{v}`")
-                if "aggregation_time" in st.session_state:
-                    st.markdown(f"**Aggregated at:** `{st.session_state.aggregation_time}`")
+    # Aggregated model internal details are also hidden here; users can rely on
+    # the Performance Metrics tab for evaluation information.
