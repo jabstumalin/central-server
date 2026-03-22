@@ -153,6 +153,15 @@ def render(h1_url, h2_url, h1_online, h2_online, central_api_url):
                     raise RuntimeError(f"HTTP {response.status_code}: {response.text}")
 
                 st.session_state.agg_model_info = response.json().get("model_info")
+
+                # Verify the aggregated model is visible on the backend disk listing.
+                models_after = set(_get_backend_models(central_api_url))
+                if "main_model_v2.pkl" not in models_after:
+                    raise RuntimeError(
+                        "Aggregation API returned success, but main_model_v2.pkl is not visible on central storage. "
+                        "Check MODEL_PATH and volume mount settings."
+                    )
+
                 st.session_state.aggregation_done = True
                 st.session_state.aggregation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -170,6 +179,7 @@ def render(h1_url, h2_url, h1_online, h2_online, central_api_url):
                 agg_status.update(label="Aggregation Complete!", state="complete", expanded=False)
                 st.success("Federated Averaging completed. Global model (main_model_v2.pkl) is ready. "
                            "View updated results in the Performance Metrics tab.")
+                st.rerun()
 
             except Exception as e:
                 agg_status.update(label="Aggregation failed", state="error")
