@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
+from typing import Any
 import uvicorn
 import os
 import io
@@ -41,6 +42,32 @@ class RetrieveModelRequest(BaseModel):
 class AggregateRequest(BaseModel):
     n1: int = 12842
     n2: int = 12842
+
+
+def _to_jsonable(obj: Any) -> Any:
+    """Convert nested structures (including numpy types) to JSON-serializable primitives."""
+    try:
+        import numpy as np  # type: ignore
+    except Exception:  # pragma: no cover - fallback when numpy unavailable
+        np = None  # type: ignore
+
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+
+    if np is not None:
+        if isinstance(obj, np.generic):  # numpy scalar, e.g. np.int64
+            return obj.item()
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+
+    if isinstance(obj, dict):
+        return {str(k): _to_jsonable(v) for k, v in obj.items()}
+
+    if isinstance(obj, (list, tuple, set)):
+        return [_to_jsonable(v) for v in obj]
+
+    # Fallback: string representation
+    return str(obj)
 
 
 def inspect_model(path: str) -> dict:
@@ -80,11 +107,15 @@ async def get_global_package():
     Endpoint for hospital nodes to retrieve both global model and scaler as a zip package.
     This is the recommended endpoint for nodes to download all necessary files at once.
     """
-    # Determine which model version to use
+    # Determine which model version to use (prefer v2, fall back to v1)
+    model_v2_path = os.path.join(settings.MODEL_PATH, "main_model_v2.pkl")
     model_v1_path = os.path.join(settings.MODEL_PATH, "main_model_v1.pkl")
     scaler_path = os.path.join(settings.MODEL_PATH, "global_scaler.pkl")
     
-    if os.path.exists(model_v1_path):
+    if os.path.exists(model_v2_path):
+        model_path = model_v2_path
+        model_filename = "main_model_v2.pkl"
+    elif os.path.exists(model_v1_path):
         model_path = model_v1_path
         model_filename = "main_model_v1.pkl"
     else:
@@ -236,6 +267,7 @@ async def retrieve_node_model(payload: RetrieveModelRequest):
 
     try:
         info = inspect_model(target_path)
+        info = _to_jsonable(info)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Downloaded file is not a valid model: {exc}") from exc
 
@@ -285,6 +317,7 @@ async def aggregate_models(payload: AggregateRequest):
         v2_path = os.path.join(settings.MODEL_PATH, "main_model_v2.pkl")
         joblib.dump(main_v2, v2_path)
         info = inspect_model(v2_path)
+        info = _to_jsonable(info)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Aggregation failed: {exc}") from exc
 
