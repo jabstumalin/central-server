@@ -123,4 +123,4 @@ with tab1:
     render_aggregation(h1_url, h2_url, h1_online, h2_online, CENTRAL_API_URL)
 
 with tab2:
-    render_metrics()
+    render_metrics(CENTRAL_API_URL)

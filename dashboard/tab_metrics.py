@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
-import os
-
-from .config import MODELS_DIR
+import requests
 
 
-def render():
+def render(central_api_url: str):
     st.header("Model Evaluation Results")
     st.markdown("Evaluation metrics for all models involved in the federated learning process.")
 
@@ -33,6 +31,16 @@ def render():
     # ---- Detailed metrics table ----
     st.subheader("Detailed Metrics Table")
 
+    # Query central server for actual model files on disk
+    try:
+        resp = requests.get(f"{central_api_url}/models/list", timeout=5)
+        if resp.status_code == 200:
+            backend_models = set(resp.json().get("models", []))
+        else:
+            backend_models = set()
+    except Exception:
+        backend_models = set()
+
     def row_availability(model_name):
         mapping = {
             "Main Model v1":              "main_model_v1.pkl",
@@ -41,7 +49,7 @@ def render():
             "Main Model v2 (Aggregated)": "main_model_v2.pkl",
         }
         fname = mapping.get(model_name)
-        if fname and os.path.exists(os.path.join(MODELS_DIR, fname)):
+        if fname and fname in backend_models:
             return "Available"
         return "Not on disk"
 
